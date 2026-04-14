@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep *)",
+      "Bash(xargs wc *)",
+      "Bash(npm install *)"
+    ]
+  }
+}

@@ -14,8 +14,7 @@ button {
   aspect-ratio: 1;
   flex-direction: column;
   justify-content: center;
-  transition: 0.1s border-color;
-  grid-gap: 5px;
+  gap: 5px;
   font-size: inherit;
   transition: 0.2s;
 
@@ -35,13 +34,8 @@ button {
   justify-content: center;
   border: 1px solid transparent;
   transition: 0.1s border-color;
-  grid-gap: 5px;
+  gap: 5px;
   flex: 1;
-
-  //.svg-inline--fa {
-  //  width: 70%;
-  //  height: auto;
-  //}
 
   &:hover {
     border-color: #ffffff75;
@@ -56,7 +50,7 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  grid-gap: 10px;
+  gap: 10px;
   width: fit-content;
 
   &__icon {

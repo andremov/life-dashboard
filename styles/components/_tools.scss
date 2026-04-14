@@ -18,7 +18,7 @@
     width: 100%;
     display: flex;
     align-items: center;
-    grid-gap: 5px;
+    gap: 5px;
     margin: 0.5rem 0 0;
     cursor: pointer;
 
@@ -40,7 +40,7 @@
   .new-task-item {
     display: flex;
     align-items: center;
-    grid-gap: 0.25rem;
+    gap: 0.25rem;
     margin-top: 0.5rem;
     margin-bottom: 0.5rem;
 
@@ -113,8 +113,7 @@
     width: 100%;
     flex: 1;
     display: flex;
-    grid-gap: 10px;
-
+    gap: 10px;
   }
 
   &__reset {
