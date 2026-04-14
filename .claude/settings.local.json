@@ -3,7 +3,10 @@
     "allow": [
       "Bash(grep *)",
       "Bash(xargs wc *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "WebFetch(domain:lifeat.io)",
+      "WebSearch",
+      "WebFetch(domain:www.youtube.com)"
     ]
   }
 }

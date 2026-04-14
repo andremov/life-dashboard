@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, type ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
 import type { Theme } from '../lib/types';
 
 type ThemeContextValue = {
@@ -10,7 +16,14 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>('dark');
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
+
   const toggle = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+
   return (
     <ThemeContext.Provider value={{ theme, toggle }}>
       {children}

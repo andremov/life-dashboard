@@ -1,83 +1,70 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Head from 'next/head';
-import { DndContext, type DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { BackgroundVideo } from '../components/background-video';
 import { Menu } from '../components/menu';
 import { OtherControls } from '../components/other-controls';
-import { Tasks, Spaces, Timer, Music } from '../components/tools';
-import { useTheme } from '../hooks/use-theme';
+import { Notes, Planner, Spaces, Tasks, Timer } from '../components/tools';
+import { useStore } from '../lib/store';
 import type { ToolName } from '../lib/types';
 
-type Position = { top: number; left: number };
-
-const INITIAL_POSITIONS: Record<ToolName, Position> = {
-  spaces: { top: 120, left: 120 },
-  timer: { top: 140, left: 180 },
-  music: { top: 200, left: 240 },
-  tasks: { top: 160, left: 300 },
-};
-
-const INITIAL_VISIBILITY: Record<ToolName, boolean> = {
-  spaces: false,
-  timer: false,
-  music: false,
-  tasks: false,
-};
-
 export default function Home() {
-  const { theme } = useTheme();
-  const [activeTools, setActiveTools] =
-    useState<Record<ToolName, boolean>>(INITIAL_VISIBILITY);
-  const [positions, setPositions] =
-    useState<Record<ToolName, Position>>(INITIAL_POSITIONS);
+  const hasHydrated = useStore((s) => s.hasHydrated);
+  const spaceId = useStore((s) => s.spaceId);
+  const toggleTool = useStore((s) => s.toggleTool);
+  const moveTool = useStore((s) => s.moveTool);
+  const reorderTasks = useStore((s) => s.reorderTasks);
+  const assignTaskToSlot = useStore((s) => s.assignTaskToSlot);
 
-  const handleToolChange = (name: ToolName) => {
-    setActiveTools((prev) => ({ ...prev, [name]: !prev[name] }));
-  };
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+  );
 
   const handleDragEnd = (event: DragEndEvent) => {
-    const id = event.active.id as ToolName;
-    if (!(id in positions)) return;
-    setPositions((prev) => ({
-      ...prev,
-      [id]: {
-        top: prev[id].top + event.delta.y,
-        left: prev[id].left + event.delta.x,
-      },
-    }));
+    const activeId = String(event.active.id);
+    const overId = event.over ? String(event.over.id) : null;
+
+    if (activeId.startsWith('tool:')) {
+      const name = activeId.slice(5) as ToolName;
+      moveTool(name, { x: event.delta.x, y: event.delta.y });
+      return;
+    }
+
+    if (activeId.startsWith('task:')) {
+      const taskId = activeId.slice(5);
+      if (overId?.startsWith('slot:')) {
+        assignTaskToSlot(overId.slice(5), taskId);
+      } else if (overId?.startsWith('task:')) {
+        reorderTasks(taskId, overId.slice(5));
+      }
+    }
   };
 
   return (
-    <div className={`container ${theme}-theme`}>
+    <div className="relative h-screen w-screen overflow-hidden bg-background text-foreground">
       <Head>
         <title>Life Dashboard</title>
         <meta name="description" content="For when you need help." />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <Menu setTool={handleToolChange} />
+      {hasHydrated && <BackgroundVideo videoId={spaceId} />}
+
+      <Menu setTool={toggleTool} />
       <OtherControls />
 
-      <DndContext onDragEnd={handleDragEnd}>
-        <Tasks
-          visible={activeTools.tasks}
-          toggleCard={() => handleToolChange('tasks')}
-          position={positions.tasks}
-        />
-        <Timer
-          visible={activeTools.timer}
-          toggleCard={() => handleToolChange('timer')}
-          position={positions.timer}
-        />
-        <Spaces
-          visible={activeTools.spaces}
-          toggleCard={() => handleToolChange('spaces')}
-          position={positions.spaces}
-        />
-        <Music
-          visible={activeTools.music}
-          toggleCard={() => handleToolChange('music')}
-          position={positions.music}
-        />
+      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <Spaces />
+        <Timer />
+        <Tasks />
+        <Notes />
+        <Planner />
       </DndContext>
     </div>
   );
