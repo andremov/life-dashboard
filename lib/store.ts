@@ -361,7 +361,7 @@ export const useStore = create<Store>()(
         const state = persisted as
           | (Partial<Store> & { note?: string })
           | undefined;
-        if (!state) return state;
+        if (!state) return state as unknown as Store;
         if (fromVersion < 2 && Array.isArray(state.tasks)) {
           state.tasks = state.tasks.map((t) => ({
             ...t,
@@ -391,7 +391,7 @@ export const useStore = create<Store>()(
           state.layout = { ...INITIAL_LAYOUT, ...state.layout };
         }
         if (!Array.isArray(state.completions)) state.completions = [];
-        return state;
+        return state as unknown as Store;
       },
       partialize: (s) => ({
         tasks: s.tasks,
