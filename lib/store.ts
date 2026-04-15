@@ -4,12 +4,14 @@ import { arrayMove } from '@dnd-kit/sortable';
 import type {
   LayoutEntry,
   Note,
+  Space,
   Task,
   Theme,
   TimerInterval,
   ToolName,
 } from './types';
-import { HOUR_SLOTS, INTERVAL_DURATIONS, SPACES, slotKey, type SpaceId } from './constants';
+import { HOUR_SLOTS, INTERVAL_DURATIONS, SPACES, slotKey } from './constants';
+import { extractVideoId, thumbnailUrl } from './youtube';
 
 function parseTaskInput(raw: string): { name: string; tags: string[] } {
   const tags: string[] = [];
@@ -64,8 +66,11 @@ type Store = {
   assignTaskToSlot: (key: string, taskId: string | null) => void;
   clearSlot: (key: string) => void;
 
-  spaceId: SpaceId;
-  setSpace: (id: SpaceId) => void;
+  spaceId: string;
+  setSpace: (id: string) => void;
+  customSpaces: Space[];
+  addCustomSpace: (input: string, title?: string) => string | null;
+  removeCustomSpace: (id: string) => void;
   spaceMuted: boolean;
   setSpaceMuted: (value: boolean) => void;
   spaceVolume: number;
@@ -203,6 +208,34 @@ export const useStore = create<Store>()(
 
       spaceId: SPACES[0].id,
       setSpace: (id) => set({ spaceId: id }),
+      customSpaces: [],
+      addCustomSpace: (input, title) => {
+        const id = extractVideoId(input);
+        if (!id) return null;
+        const existing = [...SPACES, ...get().customSpaces].find(
+          (s) => s.id === id,
+        );
+        if (existing) {
+          set({ spaceId: id });
+          return id;
+        }
+        const space: Space = {
+          id,
+          title: title?.trim() || 'Custom Space',
+          thumbnail: thumbnailUrl(id),
+        };
+        set((s) => ({
+          customSpaces: [...s.customSpaces, space],
+          spaceId: id,
+        }));
+        return id;
+      },
+      removeCustomSpace: (id) =>
+        set((s) => {
+          const nextCustom = s.customSpaces.filter((space) => space.id !== id);
+          const nextSpaceId = s.spaceId === id ? SPACES[0].id : s.spaceId;
+          return { customSpaces: nextCustom, spaceId: nextSpaceId };
+        }),
       spaceMuted: true,
       setSpaceMuted: (value) => set({ spaceMuted: value }),
       spaceVolume: 50,
@@ -366,6 +399,7 @@ export const useStore = create<Store>()(
         activeNoteId: s.activeNoteId,
         plannerAssignments: s.plannerAssignments,
         spaceId: s.spaceId,
+        customSpaces: s.customSpaces,
         spaceMuted: s.spaceMuted,
         spaceVolume: s.spaceVolume,
         spaceOverlay: s.spaceOverlay,
