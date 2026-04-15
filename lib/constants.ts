@@ -12,6 +12,8 @@ export const TOOL_NAMES: ToolName[] = [
   'tasks',
   'notes',
   'planner',
+  'stats',
+  'calendar',
 ];
 
 export const SPACES = [

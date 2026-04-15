@@ -10,7 +10,18 @@ import {
 import { BackgroundVideo } from '../components/background-video';
 import { Menu } from '../components/menu';
 import { OtherControls } from '../components/other-controls';
-import { Notes, Planner, Spaces, Tasks, Timer } from '../components/tools';
+import { TimerAlert } from '../components/timer-alert';
+import { TimerDriver } from '../components/timer-driver';
+import {
+  Calendar,
+  Notes,
+  Planner,
+  Spaces,
+  Stats,
+  Tasks,
+  Timer,
+} from '../components/tools';
+import { useShortcuts } from '../hooks/use-shortcuts';
 import { useStore } from '../lib/store';
 import type { ToolName } from '../lib/types';
 
@@ -21,6 +32,8 @@ export default function Home() {
   const moveTool = useStore((s) => s.moveTool);
   const reorderTasks = useStore((s) => s.reorderTasks);
   const assignTaskToSlot = useStore((s) => s.assignTaskToSlot);
+
+  useShortcuts();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -47,7 +60,7 @@ export default function Home() {
   };
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-background text-foreground">
+    <div className="relative isolate h-screen w-screen overflow-hidden bg-background text-foreground">
       <Head>
         <title>Life Dashboard</title>
         <meta name="description" content="For when you need help." />
@@ -55,6 +68,8 @@ export default function Home() {
       </Head>
 
       {hasHydrated && <BackgroundVideo videoId={spaceId} />}
+      <TimerDriver />
+      <TimerAlert />
 
       <Menu setTool={toggleTool} />
       <OtherControls />
@@ -65,6 +80,8 @@ export default function Home() {
         <Tasks />
         <Notes />
         <Planner />
+        <Stats />
+        <Calendar />
       </DndContext>
     </div>
   );

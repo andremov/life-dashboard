@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+  BarChart3,
+  Calendar,
   CalendarClock,
   FileText,
   ListTodo,
@@ -20,6 +22,8 @@ const TOOLS: { name: ToolName; label: string; Icon: LucideIcon }[] = [
   { name: 'tasks', label: 'Tasks', Icon: ListTodo },
   { name: 'notes', label: 'Notes', Icon: FileText },
   { name: 'planner', label: 'Planner', Icon: CalendarClock },
+  { name: 'stats', label: 'Stats', Icon: BarChart3 },
+  { name: 'calendar', label: 'Calendar', Icon: Calendar },
 ];
 
 export const Menu = ({ setTool }: MenuProps) => (

@@ -26,11 +26,12 @@ export function StaticCard({ className, children }: StaticCardProps) {
 
 type MovableCardProps = {
   name: ToolName;
+  title: string;
   className?: string;
   children: ReactNode;
 };
 
-export function MovableCard({ name, className, children }: MovableCardProps) {
+export function MovableCard({ name, title, className, children }: MovableCardProps) {
   const entry = useStore((s) => s.layout[name]);
   const toggleTool = useStore((s) => s.toggleTool);
   const bringToFront = useStore((s) => s.bringToFront);
@@ -57,10 +58,13 @@ export function MovableCard({ name, className, children }: MovableCardProps) {
       style={style}
     >
       <div
-        className="flex h-8 cursor-grab items-center justify-end border-b px-1 active:cursor-grabbing"
+        className="flex h-8 cursor-grab items-center gap-2 border-b px-2 active:cursor-grabbing"
         {...listeners}
         {...attributes}
       >
+        <span className="flex-1 truncate text-[11px] font-semibold tracking-wider text-muted-foreground uppercase select-none">
+          {title}
+        </span>
         <button
           type="button"
           onClick={() => toggleTool(name)}

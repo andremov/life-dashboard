@@ -15,7 +15,7 @@ export function Planner() {
     id ? tasks.find((t) => t.id === id)?.name ?? null : null;
 
   return (
-    <MovableCard name="planner" className="w-80">
+    <MovableCard name="planner" title="Planner" className="w-80">
       <div className="flex max-h-96 flex-col gap-0.5 overflow-y-auto pr-1">
         {HOUR_SLOTS.map((hour) => {
           const key = slotKey(hour);

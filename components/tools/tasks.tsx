@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Check, GripVertical, Plus, Trash2 } from 'lucide-react';
 import {
   SortableContext,
@@ -18,24 +18,57 @@ export function Tasks() {
   const addTask = useStore((s) => s.addTask);
   const toggleTask = useStore((s) => s.toggleTask);
   const deleteTask = useStore((s) => s.deleteTask);
+  const filterTag = useStore((s) => s.filterTag);
+  const setFilterTag = useStore((s) => s.setFilterTag);
 
-  const sortableIds = tasks.map((t) => `task:${t.id}`);
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of tasks) for (const tag of t.tags) set.add(tag);
+    return Array.from(set).sort();
+  }, [tasks]);
+
+  const filteredTasks = useMemo(
+    () => (filterTag ? tasks.filter((t) => t.tags.includes(filterTag)) : tasks),
+    [tasks, filterTag],
+  );
+
+  const sortableIds = filteredTasks.map((t) => `task:${t.id}`);
 
   return (
-    <MovableCard name="tasks" className="w-72">
+    <MovableCard name="tasks" title="Tasks" className="w-72">
+      {allTags.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1">
+          <TagChip
+            label="all"
+            active={filterTag === null}
+            onClick={() => setFilterTag(null)}
+          />
+          {allTags.map((tag) => (
+            <TagChip
+              key={tag}
+              label={`#${tag}`}
+              active={filterTag === tag}
+              onClick={() => setFilterTag(filterTag === tag ? null : tag)}
+            />
+          ))}
+        </div>
+      )}
       <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
         <div className="flex flex-col gap-1">
-          {tasks.map((task) => (
+          {filteredTasks.map((task) => (
             <TaskRow
               key={task.id}
               task={task}
               onToggle={() => toggleTask(task.id)}
               onDelete={() => deleteTask(task.id)}
+              onTagClick={(tag) =>
+                setFilterTag(filterTag === tag ? null : tag)
+              }
             />
           ))}
-          {tasks.length === 0 && (
+          {filteredTasks.length === 0 && (
             <div className="px-1 py-2 text-xs text-muted-foreground">
-              No tasks yet.
+              {filterTag ? `No tasks tagged #${filterTag}.` : 'No tasks yet.'}
             </div>
           )}
         </div>
@@ -45,13 +78,35 @@ export function Tasks() {
   );
 }
 
+type TagChipProps = {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+};
+
+const TagChip = ({ label, active, onClick }: TagChipProps) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors',
+      active
+        ? 'border-primary bg-primary text-primary-foreground'
+        : 'border-border text-muted-foreground hover:border-accent hover:text-foreground',
+    )}
+  >
+    {label}
+  </button>
+);
+
 type TaskRowProps = {
   task: Task;
   onToggle: () => void;
   onDelete: () => void;
+  onTagClick: (tag: string) => void;
 };
 
-const TaskRow = ({ task, onToggle, onDelete }: TaskRowProps) => {
+const TaskRow = ({ task, onToggle, onDelete, onTagClick }: TaskRowProps) => {
   const {
     attributes,
     listeners,
@@ -98,20 +153,39 @@ const TaskRow = ({ task, onToggle, onDelete }: TaskRowProps) => {
       >
         {task.done && <Check className="size-3.5" />}
       </button>
-      <span
-        role="button"
-        tabIndex={0}
-        onClick={onToggle}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onToggle();
-          }
-        }}
-        className="flex-1 cursor-pointer truncate"
-      >
-        {task.name}
-      </span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={onToggle}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onToggle();
+            }
+          }}
+          className="cursor-pointer truncate"
+        >
+          {task.name}
+        </span>
+        {task.tags.length > 0 && (
+          <div className="mt-0.5 flex flex-wrap gap-1">
+            {task.tags.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTagClick(tag);
+                }}
+                className="rounded-full bg-accent/50 px-1.5 py-0 text-[9px] text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
       <button
         type="button"
         onClick={onDelete}
@@ -149,7 +223,7 @@ const TaskInput = ({ addTask }: TaskInputProps) => {
         value={name}
         onChange={(e) => setName(e.target.value)}
         onKeyDown={handleEnter}
-        placeholder="Add a task..."
+        placeholder="Add task... (use #tag)"
         className="h-8 flex-1 text-sm"
       />
       <Button

@@ -1,8 +1,27 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { arrayMove } from '@dnd-kit/sortable';
-import type { LayoutEntry, Task, ToolName } from './types';
-import { HOUR_SLOTS, SPACES, slotKey, type SpaceId } from './constants';
+import type {
+  LayoutEntry,
+  Note,
+  Task,
+  Theme,
+  TimerInterval,
+  ToolName,
+} from './types';
+import { HOUR_SLOTS, INTERVAL_DURATIONS, SPACES, slotKey, type SpaceId } from './constants';
+
+function parseTaskInput(raw: string): { name: string; tags: string[] } {
+  const tags: string[] = [];
+  const stripped = raw
+    .replace(/#([A-Za-z0-9_-]+)/g, (_match, tag: string) => {
+      tags.push(tag.toLowerCase());
+      return '';
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { name: stripped, tags: Array.from(new Set(tags)) };
+}
 
 type LayoutState = Record<ToolName, LayoutEntry>;
 
@@ -11,7 +30,9 @@ const INITIAL_LAYOUT: LayoutState = {
   timer: { visible: false, top: 140, left: 360, z: 2 },
   tasks: { visible: false, top: 160, left: 600, z: 3 },
   notes: { visible: false, top: 200, left: 840, z: 4 },
-  planner: { visible: false, top: 220, left: 1080, z: 5 },
+  planner: { visible: false, top: 220, left: 260, z: 5 },
+  stats: { visible: false, top: 260, left: 500, z: 6 },
+  calendar: { visible: false, top: 280, left: 760, z: 7 },
 };
 
 const INITIAL_SLOTS: Record<string, string | null> = HOUR_SLOTS.reduce(
@@ -28,9 +49,16 @@ type Store = {
   toggleTask: (id: string) => void;
   deleteTask: (id: string) => void;
   reorderTasks: (fromId: string, toId: string) => void;
+  filterTag: string | null;
+  setFilterTag: (tag: string | null) => void;
 
-  note: string;
-  setNote: (value: string) => void;
+  notes: Note[];
+  activeNoteId: string | null;
+  createNote: () => void;
+  deleteNote: (id: string) => void;
+  selectNote: (id: string) => void;
+  updateNoteTitle: (id: string, title: string) => void;
+  updateNoteBody: (id: string, body: string) => void;
 
   plannerAssignments: Record<string, string | null>;
   assignTaskToSlot: (key: string, taskId: string | null) => void;
@@ -38,6 +66,33 @@ type Store = {
 
   spaceId: SpaceId;
   setSpace: (id: SpaceId) => void;
+  spaceMuted: boolean;
+  setSpaceMuted: (value: boolean) => void;
+  spaceVolume: number;
+  setSpaceVolume: (value: number) => void;
+  spaceOverlay: number;
+  setSpaceOverlay: (value: number) => void;
+
+  theme: Theme;
+  themeSet: boolean;
+  setTheme: (value: Theme) => void;
+  toggleTheme: () => void;
+  syncSystemTheme: () => void;
+
+  timerInterval: TimerInterval;
+  timerRemaining: number;
+  timerRunning: boolean;
+  timerDurations: Record<TimerInterval, number>;
+  timerAlert: boolean;
+  startTimer: () => void;
+  pauseTimer: () => void;
+  toggleTimer: () => void;
+  resetTimer: () => void;
+  changeTimerInterval: (next: TimerInterval) => void;
+  tickTimer: () => void;
+  setTimerDuration: (key: TimerInterval, seconds: number) => void;
+  dismissTimerAlert: () => void;
+  completions: number[];
 
   layout: LayoutState;
   topZ: number;
@@ -53,13 +108,17 @@ export const useStore = create<Store>()(
   persist(
     (set, get) => ({
       tasks: [],
-      addTask: (name) =>
-        set((s) => ({
-          tasks: [
-            ...s.tasks,
-            { id: crypto.randomUUID(), name, done: false },
-          ],
-        })),
+      addTask: (rawName) =>
+        set((s) => {
+          const { name, tags } = parseTaskInput(rawName);
+          if (!name) return {};
+          return {
+            tasks: [
+              ...s.tasks,
+              { id: crypto.randomUUID(), name, done: false, tags },
+            ],
+          };
+        }),
       toggleTask: (id) =>
         set((s) => ({
           tasks: s.tasks.map((t) =>
@@ -84,9 +143,46 @@ export const useStore = create<Store>()(
           if (from === -1 || to === -1 || from === to) return {};
           return { tasks: arrayMove(s.tasks, from, to) };
         }),
+      filterTag: null,
+      setFilterTag: (tag) => set({ filterTag: tag }),
 
-      note: '',
-      setNote: (value) => set({ note: value }),
+      notes: [],
+      activeNoteId: null,
+      createNote: () =>
+        set((s) => {
+          const newNote: Note = {
+            id: crypto.randomUUID(),
+            title: 'Untitled',
+            body: '',
+            updatedAt: Date.now(),
+          };
+          return {
+            notes: [newNote, ...s.notes],
+            activeNoteId: newNote.id,
+          };
+        }),
+      deleteNote: (id) =>
+        set((s) => {
+          const nextNotes = s.notes.filter((n) => n.id !== id);
+          return {
+            notes: nextNotes,
+            activeNoteId:
+              s.activeNoteId === id ? nextNotes[0]?.id ?? null : s.activeNoteId,
+          };
+        }),
+      selectNote: (id) => set({ activeNoteId: id }),
+      updateNoteTitle: (id, title) =>
+        set((s) => ({
+          notes: s.notes.map((n) =>
+            n.id === id ? { ...n, title, updatedAt: Date.now() } : n,
+          ),
+        })),
+      updateNoteBody: (id, body) =>
+        set((s) => ({
+          notes: s.notes.map((n) =>
+            n.id === id ? { ...n, body, updatedAt: Date.now() } : n,
+          ),
+        })),
 
       plannerAssignments: INITIAL_SLOTS,
       assignTaskToSlot: (key, taskId) =>
@@ -107,9 +203,81 @@ export const useStore = create<Store>()(
 
       spaceId: SPACES[0].id,
       setSpace: (id) => set({ spaceId: id }),
+      spaceMuted: true,
+      setSpaceMuted: (value) => set({ spaceMuted: value }),
+      spaceVolume: 50,
+      setSpaceVolume: (value) => set({ spaceVolume: value }),
+      spaceOverlay: 0.2,
+      setSpaceOverlay: (value) => set({ spaceOverlay: value }),
+
+      theme: 'dark',
+      themeSet: false,
+      setTheme: (value) => set({ theme: value, themeSet: true }),
+      toggleTheme: () =>
+        set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark', themeSet: true })),
+      syncSystemTheme: () => {
+        if (typeof window === 'undefined' || !window.matchMedia) return;
+        if (get().themeSet) return;
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        set({ theme: prefersDark ? 'dark' : 'light' });
+      },
+
+      timerInterval: 'pomodoro',
+      timerRemaining: INTERVAL_DURATIONS.pomodoro,
+      timerRunning: false,
+      timerDurations: { ...INTERVAL_DURATIONS },
+      timerAlert: false,
+      completions: [],
+      startTimer: () => set({ timerRunning: true, timerAlert: false }),
+      pauseTimer: () => set({ timerRunning: false }),
+      toggleTimer: () =>
+        set((s) => ({
+          timerRunning: !s.timerRunning,
+          timerAlert: false,
+        })),
+      resetTimer: () =>
+        set((s) => ({
+          timerRunning: false,
+          timerRemaining: s.timerDurations[s.timerInterval],
+          timerAlert: false,
+        })),
+      changeTimerInterval: (next) =>
+        set((s) => ({
+          timerInterval: next,
+          timerRemaining: s.timerDurations[next],
+          timerRunning: false,
+          timerAlert: false,
+        })),
+      tickTimer: () =>
+        set((s) => {
+          if (!s.timerRunning) return {};
+          if (s.timerRemaining <= 1) {
+            const wasPomodoro = s.timerInterval === 'pomodoro';
+            return {
+              timerRunning: false,
+              timerRemaining: 0,
+              timerAlert: true,
+              completions: wasPomodoro
+                ? [...s.completions, Date.now()]
+                : s.completions,
+            };
+          }
+          return { timerRemaining: s.timerRemaining - 1 };
+        }),
+      dismissTimerAlert: () => set({ timerAlert: false }),
+      setTimerDuration: (key, seconds) =>
+        set((s) => {
+          const nextDurations = { ...s.timerDurations, [key]: seconds };
+          const shouldResetRemaining =
+            s.timerInterval === key && !s.timerRunning;
+          return {
+            timerDurations: nextDurations,
+            timerRemaining: shouldResetRemaining ? seconds : s.timerRemaining,
+          };
+        }),
 
       layout: INITIAL_LAYOUT,
-      topZ: 5,
+      topZ: 7,
       toggleTool: (name) =>
         set((s) => {
           const entry = s.layout[name];
@@ -155,15 +323,75 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'life-dashboard',
-      version: 1,
+      version: 3,
+      migrate: (persisted: unknown, fromVersion) => {
+        const state = persisted as
+          | (Partial<Store> & { note?: string })
+          | undefined;
+        if (!state) return state;
+        if (fromVersion < 2 && Array.isArray(state.tasks)) {
+          state.tasks = state.tasks.map((t) => ({
+            ...t,
+            tags: Array.isArray((t as Task).tags) ? (t as Task).tags : [],
+          }));
+        }
+        if (fromVersion < 3) {
+          const legacy = state.note;
+          if (typeof legacy === 'string' && legacy.trim()) {
+            const id = crypto.randomUUID();
+            state.notes = [
+              {
+                id,
+                title: 'Untitled',
+                body: legacy,
+                updatedAt: Date.now(),
+              },
+            ];
+            state.activeNoteId = id;
+          } else if (!Array.isArray(state.notes)) {
+            state.notes = [];
+            state.activeNoteId = null;
+          }
+          delete state.note;
+        }
+        if (state.layout) {
+          state.layout = { ...INITIAL_LAYOUT, ...state.layout };
+        }
+        if (!Array.isArray(state.completions)) state.completions = [];
+        return state;
+      },
       partialize: (s) => ({
         tasks: s.tasks,
-        note: s.note,
+        notes: s.notes,
+        activeNoteId: s.activeNoteId,
         plannerAssignments: s.plannerAssignments,
         spaceId: s.spaceId,
+        spaceMuted: s.spaceMuted,
+        spaceVolume: s.spaceVolume,
+        spaceOverlay: s.spaceOverlay,
+        theme: s.theme,
+        themeSet: s.themeSet,
+        timerDurations: s.timerDurations,
+        completions: s.completions,
         layout: s.layout,
         topZ: s.topZ,
       }),
+      merge: (persistedState, currentState) => {
+        const persisted = (persistedState ?? {}) as Partial<Store>;
+        return {
+          ...currentState,
+          ...persisted,
+          layout: { ...currentState.layout, ...(persisted.layout ?? {}) },
+          plannerAssignments: {
+            ...currentState.plannerAssignments,
+            ...(persisted.plannerAssignments ?? {}),
+          },
+          timerDurations: {
+            ...currentState.timerDurations,
+            ...(persisted.timerDurations ?? {}),
+          },
+        };
+      },
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },
