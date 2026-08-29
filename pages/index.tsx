@@ -22,12 +22,14 @@ import {
   Timer,
 } from '../components/tools';
 import { useShortcuts } from '../hooks/use-shortcuts';
+import { resolveSpace } from '../lib/constants';
 import { useStore } from '../lib/store';
 import type { ToolName } from '../lib/types';
 
 export default function Home() {
   const hasHydrated = useStore((s) => s.hasHydrated);
   const spaceId = useStore((s) => s.spaceId);
+  const customSpaces = useStore((s) => s.customSpaces);
   const toggleTool = useStore((s) => s.toggleTool);
   const moveTool = useStore((s) => s.moveTool);
   const reorderTasks = useStore((s) => s.reorderTasks);
@@ -67,7 +69,7 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      {hasHydrated && <BackgroundVideo videoId={spaceId} />}
+      {hasHydrated && <BackgroundVideo space={resolveSpace(spaceId, customSpaces)} />}
       <TimerDriver />
       <TimerAlert />
 

@@ -29,6 +29,8 @@ export type Space = {
   id: string;
   title: string;
   thumbnail: string;
+  /** Radio station: a pool of videos played in shuffled order. */
+  videoIds?: readonly string[];
 };
 
 export type LayoutEntry = {

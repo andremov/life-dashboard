@@ -1,16 +1,34 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../lib/store';
+import type { Space } from '../lib/types';
 
-type Props = { videoId: string };
+type Props = { space: Space };
 
-export function BackgroundVideo({ videoId }: Props) {
+function shuffle(ids: readonly string[]): string[] {
+  const next = [...ids];
+  for (let i = next.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+  return next;
+}
+
+export function BackgroundVideo({ space }: Props) {
   const muted = useStore((s) => s.spaceMuted);
   const volume = useStore((s) => s.spaceVolume);
   const overlay = useStore((s) => s.spaceOverlay);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [ready, setReady] = useState(false);
 
-  const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&enablejsapi=1`;
+  // A station shuffles its pool and hands the rest to the player as a
+  // playlist, so it auto-advances and loops back around when it runs out.
+  const { videoId, playlist } = useMemo(() => {
+    if (!space.videoIds?.length) return { videoId: space.id, playlist: space.id };
+    const [first, ...rest] = shuffle(space.videoIds);
+    return { videoId: first, playlist: rest.join(',') || first };
+  }, [space]);
+
+  const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${playlist}&controls=0&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&enablejsapi=1`;
 
   useEffect(() => {
     setReady(false);

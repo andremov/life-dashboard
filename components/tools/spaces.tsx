@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Plus, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { Check, Plus, Radio, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { MovableCard } from '../cards';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -23,7 +23,7 @@ export function Spaces() {
 
   return (
     <MovableCard name="spaces" title="Spaces" className="w-80">
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-y-auto overscroll-contain pr-1">
         {SPACES.map((space) => (
           <SpaceTile
             key={space.id}
@@ -121,6 +121,15 @@ const SpaceTile = ({ space, active, onSelect, onRemove }: SpaceTileProps) => (
         {space.title}
       </div>
     </button>
+    {space.videoIds && (
+      <div
+        title={`Station — shuffles ${space.videoIds.length} videos`}
+        className="pointer-events-none absolute top-1 left-1 flex items-center gap-0.5 rounded-full bg-black/70 px-1.5 py-0.5 text-[9px] font-medium tracking-wide text-white uppercase"
+      >
+        <Radio className="size-2.5" />
+        {space.videoIds.length}
+      </div>
+    )}
     {active && (
       <div className="pointer-events-none absolute top-1 right-1 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
         <Check className="size-3" />
