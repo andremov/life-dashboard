@@ -366,8 +366,6 @@ export const SPACES = [
   },
 ] as const;
 
-export type SpaceId = (typeof SPACES)[number]['id'];
-
 export const HOUR_SLOTS = Array.from({ length: 18 }, (_, i) => i + 6);
 
 export const slotKey = (hour: number) => `${hour.toString().padStart(2, '0')}:00`;

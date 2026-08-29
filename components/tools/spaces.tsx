@@ -1,15 +1,24 @@
 import React, { useState } from 'react';
-import { Check, Plus, Radio, Trash2, Volume2, VolumeX } from 'lucide-react';
+import {
+  AudioLines,
+  Check,
+  Plus,
+  Radio,
+  Trash2,
+  Volume2,
+  VolumeX,
+} from 'lucide-react';
 import { MovableCard } from '../cards';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { SPACES } from '../../lib/constants';
+import { SPACES, resolveSpace } from '../../lib/constants';
 import { useStore } from '../../lib/store';
 import type { Space } from '../../lib/types';
 import { cn } from '../../lib/utils';
 
 export function Spaces() {
   const spaceId = useStore((s) => s.spaceId);
+  const nowPlaying = useStore((s) => s.nowPlaying);
   const setSpace = useStore((s) => s.setSpace);
   const customSpaces = useStore((s) => s.customSpaces);
   const addCustomSpace = useStore((s) => s.addCustomSpace);
@@ -23,6 +32,10 @@ export function Spaces() {
 
   return (
     <MovableCard name="spaces" title="Spaces" className="w-80">
+      <NowPlaying
+        title={nowPlaying}
+        fallback={resolveSpace(spaceId, customSpaces).title}
+      />
       <div className="grid max-h-[50vh] grid-cols-2 gap-2 overflow-y-auto overscroll-contain pr-1">
         {SPACES.map((space) => (
           <SpaceTile
@@ -87,6 +100,22 @@ export function Spaces() {
     </MovableCard>
   );
 }
+
+type NowPlayingProps = { title: string | null; fallback: string };
+
+const NowPlaying = ({ title, fallback }: NowPlayingProps) => (
+  <div className="mb-3 flex items-center gap-2 border-b pb-3">
+    <AudioLines className="size-4 shrink-0 text-primary" />
+    <div className="min-w-0">
+      <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+        Now playing
+      </p>
+      <p className="truncate text-xs" title={title ?? fallback}>
+        {title ?? fallback}
+      </p>
+    </div>
+  </div>
+);
 
 type SpaceTileProps = {
   space: Space;

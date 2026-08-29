@@ -77,6 +77,9 @@ type Store = {
   setSpaceVolume: (value: number) => void;
   spaceOverlay: number;
   setSpaceOverlay: (value: number) => void;
+  /** Title reported by the player for the video actually on screen. */
+  nowPlaying: string | null;
+  setNowPlaying: (title: string | null) => void;
 
   theme: Theme;
   themeSet: boolean;
@@ -207,7 +210,7 @@ export const useStore = create<Store>()(
         })),
 
       spaceId: SPACES[0].id,
-      setSpace: (id) => set({ spaceId: id }),
+      setSpace: (id) => set({ spaceId: id, nowPlaying: null }),
       customSpaces: [],
       addCustomSpace: (input, title) => {
         const id = extractVideoId(input);
@@ -242,6 +245,8 @@ export const useStore = create<Store>()(
       setSpaceVolume: (value) => set({ spaceVolume: value }),
       spaceOverlay: 0.2,
       setSpaceOverlay: (value) => set({ spaceOverlay: value }),
+      nowPlaying: null,
+      setNowPlaying: (title) => set({ nowPlaying: title }),
 
       theme: 'dark',
       themeSet: false,
