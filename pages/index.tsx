@@ -76,7 +76,7 @@ export default function Home() {
       <Menu setTool={toggleTool} />
       <OtherControls />
 
-      <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+      <DndContext id="life-dashboard" sensors={sensors} onDragEnd={handleDragEnd}>
         <Spaces />
         <Timer />
         <Tasks />

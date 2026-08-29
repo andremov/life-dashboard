@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../lib/store';
 import type { Space } from '../lib/types';
 
@@ -7,6 +7,7 @@ type Props = { space: Space };
 type YTPlayer = {
   destroy: () => void;
   playVideo: () => void;
+  loadVideoById: (id: string) => void;
   mute: () => void;
   unMute: () => void;
   setVolume: (value: number) => void;
@@ -22,13 +23,13 @@ declare global {
   }
 }
 
-function shuffle(ids: readonly string[]): string[] {
-  const next = [...ids];
-  for (let i = next.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [next[i], next[j]] = [next[j], next[i]];
-  }
-  return next;
+const ENDED = 0;
+
+/** Random pick from a station's pool, avoiding an immediate repeat. */
+function pick(ids: readonly string[], exclude?: string): string {
+  const others = ids.filter((id) => id !== exclude);
+  const from = others.length ? others : ids;
+  return from[Math.floor(Math.random() * from.length)];
 }
 
 let apiPromise: Promise<void> | null = null;
@@ -57,14 +58,6 @@ export function BackgroundVideo({ space }: Props) {
   const playerRef = useRef<YTPlayer | null>(null);
   const [ready, setReady] = useState(false);
 
-  // A station shuffles its pool and hands the rest to the player as a
-  // playlist, so it auto-advances and loops back around when it runs out.
-  const { videoId, playlist } = useMemo(() => {
-    if (!space.videoIds?.length) return { videoId: space.id, playlist: space.id };
-    const [first, ...rest] = shuffle(space.videoIds);
-    return { videoId: first, playlist: rest.join(',') || first };
-  }, [space]);
-
   useEffect(() => {
     let cancelled = false;
     setReady(false);
@@ -74,8 +67,13 @@ export function BackgroundVideo({ space }: Props) {
     const mount = document.createElement('div');
     hostRef.current?.appendChild(mount);
 
-    // Only the player knows which video is on screen once a station's
-    // playlist starts advancing on its own.
+    const pool = space.videoIds;
+    // A station rolls its next video when the current one ends, so the order
+    // is never fixed up front. A plain space just loops itself.
+    let current = pool?.length ? pick(pool) : space.id;
+
+    // Only the player knows which video is on screen once a station starts
+    // moving through its pool.
     const report = (player: YTPlayer) => {
       const title = player.getVideoData?.().title;
       if (title) setNowPlaying(title);
@@ -84,18 +82,17 @@ export function BackgroundVideo({ space }: Props) {
     loadPlayerApi().then(() => {
       if (cancelled || !window.YT) return;
       playerRef.current = new window.YT.Player(mount, {
-        videoId,
+        videoId: current,
         playerVars: {
           autoplay: 1,
           mute: 1,
-          loop: 1,
-          playlist,
           controls: 0,
           modestbranding: 1,
           rel: 0,
           playsinline: 1,
           iv_load_policy: 3,
           disablekb: 1,
+          ...(pool?.length ? {} : { loop: 1, playlist: space.id }),
         },
         events: {
           onReady: (event: { target: YTPlayer }) => {
@@ -104,7 +101,14 @@ export function BackgroundVideo({ space }: Props) {
             report(event.target);
             setReady(true);
           },
-          onStateChange: (event: { target: YTPlayer }) => report(event.target),
+          onStateChange: (event: { data: number; target: YTPlayer }) => {
+            if (event.data === ENDED && pool?.length) {
+              current = pick(pool, current);
+              event.target.loadVideoById(current);
+              return;
+            }
+            report(event.target);
+          },
         },
       });
     });
@@ -115,7 +119,7 @@ export function BackgroundVideo({ space }: Props) {
       playerRef.current = null;
       mount.remove();
     };
-  }, [videoId, playlist, setNowPlaying]);
+  }, [space, setNowPlaying]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -127,9 +131,11 @@ export function BackgroundVideo({ space }: Props) {
 
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-black">
+      {/* Overscaled so YouTube's own title and "More videos" chrome, which
+          sits against the player's edges, falls outside the viewport. */}
       <div
         ref={hostRef}
-        className="absolute top-1/2 left-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:border-0"
+        className="absolute top-1/2 left-1/2 h-[56.25vw] min-h-full w-[177.78vh] min-w-full -translate-x-1/2 -translate-y-1/2 scale-[1.35] [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:border-0"
       />
       <div
         className="absolute inset-0 bg-black transition-opacity"

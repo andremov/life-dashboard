@@ -62,8 +62,8 @@ when it runs out. Stations show a badge with their pool size.
 ```
 
 Station IDs are prefixed `station:` so they never collide with a video ID.
-The shuffle happens once per selection, not once per track — the running order
-is decided when you pick the station.
+The next video is rolled when the current one ends, not planned up front, so
+the running order is never fixed. Consecutive repeats are avoided.
 
 Whichever is playing, the Spaces window shows the current video's real YouTube
 title under **Now playing**, which is the only way to tell where a station has

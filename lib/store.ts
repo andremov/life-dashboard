@@ -219,7 +219,7 @@ export const useStore = create<Store>()(
           (s) => s.id === id,
         );
         if (existing) {
-          set({ spaceId: id });
+          set({ spaceId: id, nowPlaying: null });
           return id;
         }
         const space: Space = {
@@ -230,6 +230,7 @@ export const useStore = create<Store>()(
         set((s) => ({
           customSpaces: [...s.customSpaces, space],
           spaceId: id,
+          nowPlaying: null,
         }));
         return id;
       },
@@ -237,7 +238,11 @@ export const useStore = create<Store>()(
         set((s) => {
           const nextCustom = s.customSpaces.filter((space) => space.id !== id);
           const nextSpaceId = s.spaceId === id ? SPACES[0].id : s.spaceId;
-          return { customSpaces: nextCustom, spaceId: nextSpaceId };
+          return {
+            customSpaces: nextCustom,
+            spaceId: nextSpaceId,
+            nowPlaying: nextSpaceId === s.spaceId ? s.nowPlaying : null,
+          };
         }),
       spaceMuted: true,
       setSpaceMuted: (value) => set({ spaceMuted: value }),
