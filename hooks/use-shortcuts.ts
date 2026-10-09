@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { resolveAndremovTheme, useAndremovTheme } from '@andremov/brand';
 import { useStore } from '../lib/store';
 import type { ToolName } from '../lib/types';
 
@@ -28,7 +29,7 @@ function toggleFullscreen() {
 export function useShortcuts() {
   const toggleTool = useStore((s) => s.toggleTool);
   const toggleTimer = useStore((s) => s.toggleTimer);
-  const toggleTheme = useStore((s) => s.toggleTheme);
+  const { theme, setTheme } = useAndremovTheme();
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -48,7 +49,13 @@ export function useShortcuts() {
       }
       if (e.key === 't' || e.key === 'T') {
         e.preventDefault();
-        toggleTheme();
+        // flips what's on screen, like the header button: "system" resolves through the OS
+        const resolved = resolveAndremovTheme(theme);
+        const dark =
+          resolved === 'dark' ||
+          (resolved === 'system' &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        setTheme(dark ? 'light' : 'dark');
         return;
       }
       if (e.key === 'f' || e.key === 'F') {
@@ -59,5 +66,5 @@ export function useShortcuts() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [toggleTool, toggleTimer, toggleTheme]);
+  }, [toggleTool, toggleTimer, theme, setTheme]);
 }

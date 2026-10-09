@@ -1,9 +1,10 @@
+// andremov-brand-check-unique: the month grid, shaded on days with completed pomodoros, is the calendar window's own heat map
 import React, { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Text, cn } from '@andremov/brand';
+import { Button } from '@andremov/brand/ui/button';
 import { MovableCard } from '../cards';
-import { Button } from '../ui/button';
 import { useStore } from '../../lib/store';
-import { cn } from '../../lib/utils';
 
 function startOfDay(ms: number): number {
   const d = new Date(ms);
@@ -63,20 +64,18 @@ export function CalendarTool() {
       <div className="flex items-center gap-1">
         <Button
           variant="ghost"
-          size="icon"
-          className="size-7"
+          size="icon-sm"
           onClick={() => shift(-1)}
           aria-label="Previous month"
         >
           <ChevronLeft className="size-4" />
         </Button>
-        <div className="flex-1 text-center text-sm font-semibold">
+        <Text variant="heading" aria-live="polite" className="flex-1 text-center">
           {monthLabel}
-        </div>
+        </Text>
         <Button
           variant="ghost"
-          size="icon"
-          className="size-7"
+          size="icon-sm"
           onClick={() => shift(1)}
           aria-label="Next month"
         >
@@ -87,6 +86,7 @@ export function CalendarTool() {
         {WEEKDAYS.map((w, i) => (
           <div
             key={i}
+            aria-hidden
             className="text-[10px] font-medium tracking-wider text-muted-foreground uppercase"
           >
             {w}
@@ -101,15 +101,16 @@ export function CalendarTool() {
               key={i}
               className={cn(
                 'relative flex aspect-square items-center justify-center rounded-md text-xs',
-                isToday && 'bg-primary text-primary-foreground font-semibold',
-                !isToday && count > 0 && 'bg-primary/20 text-foreground',
+                isToday && 'bg-primary font-semibold text-primary-foreground',
+                !isToday && count > 0 && 'bg-brand/20 text-foreground',
                 !isToday && count === 0 && 'text-muted-foreground',
               )}
               title={count > 0 ? `${count} pomodoros` : undefined}
             >
               {cell.day}
+              {count > 0 && <span className="sr-only">: {count} pomodoros</span>}
               {count > 0 && !isToday && (
-                <span className="absolute right-0.5 bottom-0.5 size-1 rounded-full bg-primary" />
+                <span aria-hidden className="absolute right-0.5 bottom-0.5 size-1 rounded-full bg-brand" />
               )}
             </div>
           );

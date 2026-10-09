@@ -1,7 +1,8 @@
+// andremov-brand-check-unique: the seven-day bar chart of completed pomodoros is the stats window's own visualisation
 import React, { useMemo } from 'react';
+import { StatGroup, StatTile, Text } from '@andremov/brand';
 import { MovableCard } from '../cards';
 import { useStore } from '../../lib/store';
-import { cn } from '../../lib/utils';
 
 function startOfDay(ms: number): number {
   const d = new Date(ms);
@@ -9,11 +10,16 @@ function startOfDay(ms: number): number {
   return d.getTime();
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+/** Midnight `n` days before `day`: by the calendar, so a 23- or 25-hour DST day doesn't drift. */
+function daysBefore(day: number, n: number): number {
+  const d = new Date(day);
+  d.setDate(d.getDate() - n);
+  return d.getTime();
+}
 
 function summarize(completions: number[], pomodoroSeconds: number) {
   const today = startOfDay(Date.now());
-  const weekStart = today - 6 * DAY_MS;
+  const weekStart = daysBefore(today, 6);
 
   const byDay = new Map<number, number>();
   for (const ts of completions) {
@@ -26,7 +32,7 @@ function summarize(completions: number[], pomodoroSeconds: number) {
   let weekCount = 0;
   const last7: { day: number; count: number }[] = [];
   for (let i = 6; i >= 0; i--) {
-    const day = today - i * DAY_MS;
+    const day = daysBefore(today, i);
     const count = byDay.get(day) ?? 0;
     last7.push({ day, count });
     if (day >= weekStart) weekCount += count;
@@ -34,7 +40,7 @@ function summarize(completions: number[], pomodoroSeconds: number) {
 
   let streak = 0;
   for (let i = 0; ; i++) {
-    const day = today - i * DAY_MS;
+    const day = daysBefore(today, i);
     if ((byDay.get(day) ?? 0) > 0) streak++;
     else break;
   }
@@ -61,60 +67,51 @@ export function Stats() {
 
   return (
     <MovableCard name="stats" title="Stats" className="w-72">
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <StatBlock label="Today" value={todayCount} />
-        <StatBlock label="Week" value={weekCount} />
-        <StatBlock label="Streak" value={streak} suffix="d" />
-      </div>
-      <div className="mt-1 text-center text-[11px] text-muted-foreground">
+      <StatGroup className="grid grid-cols-3">
+        <StatTile size="sm" label="Today" value={todayCount} />
+        <StatTile size="sm" label="Week" value={weekCount} />
+        <StatTile size="sm" label="Streak" value={`${streak}d`} />
+      </StatGroup>
+      <Text variant="hint" className="mt-1 text-center">
         {focusMinutesToday} min focused today
-      </div>
+      </Text>
       <div className="mt-4">
-        <p className="mb-1 text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+        <Text variant="hint" className="mb-1" id="stats-last-7">
           Last 7 days
-        </p>
-        <div className="flex h-20 items-end gap-1">
+        </Text>
+        <ol aria-labelledby="stats-last-7" className="flex h-20 items-end gap-1">
           {last7.map(({ day, count }) => {
             const weekday = WEEKDAY[new Date(day).getDay()];
             const heightPct = (count / maxCount) * 100;
             return (
-              <div
+              <li
                 key={day}
-                className="flex flex-1 flex-col items-center gap-1"
+                className="flex h-full flex-1 flex-col items-center gap-1"
+                title={`${count} pomodoros`}
               >
-                <div
-                  className={cn(
-                    'w-full rounded-t',
-                    count > 0 ? 'bg-primary' : 'bg-accent/40',
-                  )}
-                  style={{ height: `${Math.max(heightPct, 4)}%` }}
-                  title={`${count} pomodoros`}
-                />
-                <span className="text-[9px] text-muted-foreground">
+                {/* the bar is positioned against a sized box: a percentage height of an
+                    auto-height column resolves to nothing, so no bar ever showed */}
+                <div className="relative w-full flex-1">
+                  <div
+                    className={
+                      count > 0
+                        ? 'absolute inset-x-0 bottom-0 rounded-t bg-primary'
+                        : 'absolute inset-x-0 bottom-0 rounded-t bg-muted'
+                    }
+                    style={{ height: `${Math.max(heightPct, 4)}%` }}
+                  />
+                </div>
+                <span aria-hidden className="text-[10px] text-muted-foreground">
                   {weekday}
                 </span>
-              </div>
+                <span className="sr-only">
+                  {new Date(day).toLocaleDateString(undefined, { weekday: 'long' })}: {count}
+                </span>
+              </li>
             );
           })}
-        </div>
+        </ol>
       </div>
     </MovableCard>
   );
 }
-
-type StatBlockProps = { label: string; value: number; suffix?: string };
-const StatBlock = ({ label, value, suffix }: StatBlockProps) => (
-  <div className="rounded-md bg-accent/30 px-2 py-2">
-    <div className="font-mono text-xl font-semibold tabular-nums">
-      {value}
-      {suffix && (
-        <span className="ml-0.5 text-xs font-normal text-muted-foreground">
-          {suffix}
-        </span>
-      )}
-    </div>
-    <div className="text-[10px] tracking-wider text-muted-foreground uppercase">
-      {label}
-    </div>
-  </div>
-);

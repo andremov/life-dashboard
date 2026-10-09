@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Maximize, Moon, Sun } from 'lucide-react';
+import { Maximize } from 'lucide-react';
+import { Text, ThemeToggle } from '@andremov/brand';
+import { Button } from '@andremov/brand/ui/button';
+import { Separator } from '@andremov/brand/ui/separator';
 import { StaticCard } from './cards';
-import { Button } from './ui/button';
-import { useTheme } from '../hooks/use-theme';
 
 function handleFullScreen() {
   if (typeof document === 'undefined') return;
@@ -33,19 +34,18 @@ function useCurrentDate() {
 }
 
 export function OtherControls() {
-  const { theme, toggle } = useTheme();
-  const isLight = theme === 'light';
+  // the date and the theme button both depend on the browser (locale, OS theme), so they
+  // render after mount rather than mismatch the server HTML
   const date = useCurrentDate();
 
   return (
     <StaticCard className="fixed top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 px-3 py-1.5">
-      <span
-        suppressHydrationWarning
-        className="text-xs font-medium tracking-wide text-muted-foreground select-none"
-      >
-        {date ?? '\u00a0'}
-      </span>
-      <div className="h-6 w-px bg-border" />
+      <Text as="span" variant="hint" className="select-none">
+        {date ?? ' '}
+      </Text>
+      <div className="h-6">
+        <Separator orientation="vertical" />
+      </div>
       <Button
         variant="ghost"
         size="icon"
@@ -54,15 +54,10 @@ export function OtherControls() {
       >
         <Maximize className="size-4" />
       </Button>
-      <div className="h-6 w-px bg-border" />
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={toggle}
-        aria-label={isLight ? 'Switch to dark theme' : 'Switch to light theme'}
-      >
-        {isLight ? <Sun className="size-4" /> : <Moon className="size-4" />}
-      </Button>
+      <div className="h-6">
+        <Separator orientation="vertical" />
+      </div>
+      {date ? <ThemeToggle variant="button" /> : <span className="size-8" />}
     </StaticCard>
   );
 }

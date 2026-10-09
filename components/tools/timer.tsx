@@ -1,20 +1,21 @@
+// andremov-brand-check-unique: the large clock readout, and its alarm state, are the focus timer's own display
 import React, { useState } from 'react';
 import { RotateCw, Settings } from 'lucide-react';
+import { NumberInput, SegmentedControl, Text, cn } from '@andremov/brand';
+import { Button } from '@andremov/brand/ui/button';
+import { Toggle } from '@andremov/brand/ui/toggle';
 import { MovableCard } from '../cards';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import { useStore } from '../../lib/store';
 import type { TimerInterval } from '../../lib/types';
-import { cn } from '../../lib/utils';
 
 const formatDigits = (n: number): string => (n < 10 ? `0${n}` : `${n}`);
 const formatTime = (seconds: number): string =>
   `${formatDigits(Math.floor(seconds / 60))}:${formatDigits(seconds % 60)}`;
 
-const INTERVAL_LABELS: { name: TimerInterval; label: string }[] = [
-  { name: 'pomodoro', label: 'Pomodoro' },
-  { name: 'short', label: 'Short Break' },
-  { name: 'long', label: 'Long Break' },
+const INTERVAL_LABELS: { value: TimerInterval; label: string }[] = [
+  { value: 'pomodoro', label: 'Pomodoro' },
+  { value: 'short', label: 'Short Break' },
+  { value: 'long', label: 'Long Break' },
 ];
 
 export function TimerTool() {
@@ -34,16 +35,15 @@ export function TimerTool() {
     <MovableCard
       name="timer"
       title="Timer"
-      className={cn(
-        'w-96',
-        alert && 'animate-pulse ring-4 ring-red-500/70',
-      )}
+      className={cn('w-96', alert && 'ring-4 ring-danger/70')}
     >
       <div className="flex items-center gap-3">
         <div
+          role="timer"
+          aria-label="Time remaining"
           className={cn(
             'flex-1 font-mono text-5xl font-semibold tabular-nums',
-            alert && 'text-red-500',
+            alert && 'text-danger-text',
           )}
         >
           {formatTime(remaining)}
@@ -51,61 +51,48 @@ export function TimerTool() {
         <Button onClick={toggle} className="min-w-20">
           {isRunning ? 'Pause' : 'Start'}
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={reset}
-          aria-label="Reset timer"
-        >
+        <Button variant="ghost" size="icon" onClick={reset} aria-label="Reset timer">
           <RotateCw className="size-4" />
         </Button>
       </div>
       <div className="mt-3 flex items-center gap-2">
-        {INTERVAL_LABELS.map(({ name, label }) => (
-          <Button
-            key={name}
-            variant={interval === name ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => change(name)}
-            className={cn(interval === name && 'font-semibold')}
-          >
-            {label}
-          </Button>
-        ))}
-        <Button
-          variant={settingsOpen ? 'secondary' : 'ghost'}
-          size="icon"
-          onClick={() => setSettingsOpen((v) => !v)}
+        <SegmentedControl
+          aria-label="Interval"
+          size="sm"
+          options={INTERVAL_LABELS}
+          value={interval}
+          onChange={change}
+          arrowKeys={false}
+        />
+        <Toggle
+          pressed={settingsOpen}
+          onPressedChange={setSettingsOpen}
           className="ml-auto"
           aria-label="Timer settings"
-          aria-expanded={settingsOpen}
         >
           <Settings className="size-4" />
-        </Button>
+        </Toggle>
       </div>
       {settingsOpen && (
         <div className="mt-3 flex flex-col gap-2 border-t pt-3">
-          <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
-            Durations (minutes)
-          </p>
-          {INTERVAL_LABELS.map(({ name, label }) => (
-            <label
-              key={name}
-              className="flex items-center gap-2 text-xs text-muted-foreground"
-            >
-              <span className="flex-1">{label}</span>
-              <Input
-                type="number"
+          <Text variant="hint">Durations (minutes)</Text>
+          {INTERVAL_LABELS.map(({ value, label }) => (
+            <div key={value} className="flex items-center gap-2">
+              <Text as="label" variant="hint" htmlFor={`duration-${value}`} className="flex-1">
+                {label}
+              </Text>
+              <NumberInput
+                id={`duration-${value}`}
+                size="sm"
                 min={1}
                 max={120}
-                value={Math.round(durations[name] / 60)}
-                onChange={(e) => {
-                  const minutes = Math.max(1, Number(e.target.value) || 1);
-                  setDuration(name, minutes * 60);
-                }}
-                className="h-7 w-16 text-center text-sm"
+                value={Math.round(durations[value] / 60)}
+                onChange={(minutes) =>
+                  setDuration(value, Math.min(120, Math.max(1, Math.round(minutes) || 1)) * 60)
+                }
+                className="w-16"
               />
-            </label>
+            </div>
           ))}
         </div>
       )}

@@ -1,5 +1,3 @@
-export type Theme = 'dark' | 'light';
-
 export type TimerInterval = 'pomodoro' | 'short' | 'long';
 
 export type ToolName =

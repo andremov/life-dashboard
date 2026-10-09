@@ -47,7 +47,9 @@ export default function Home() {
 
     if (activeId.startsWith('tool:')) {
       const name = activeId.slice(5) as ToolName;
-      moveTool(name, { x: event.delta.x, y: event.delta.y });
+      // where the window was dropped on screen (its shown position may be clamped)
+      const rect = event.active.rect.current.translated;
+      if (rect) moveTool(name, { top: rect.top, left: rect.left });
       return;
     }
 
@@ -62,12 +64,13 @@ export default function Home() {
   };
 
   return (
-    <div className="relative isolate h-screen w-screen overflow-hidden bg-background text-foreground">
+    <main className="relative isolate h-dvh w-screen overflow-hidden select-none">
       <Head>
         <title>Life Dashboard</title>
         <meta name="description" content="For when you need help." />
         <link rel="icon" href="/favicon.ico" />
       </Head>
+      <h1 className="sr-only">Life Dashboard</h1>
 
       {hasHydrated && <BackgroundVideo space={resolveSpace(spaceId, customSpaces)} />}
       <TimerDriver />
@@ -85,6 +88,6 @@ export default function Home() {
         <Stats />
         <Calendar />
       </DndContext>
-    </div>
+    </main>
   );
 }

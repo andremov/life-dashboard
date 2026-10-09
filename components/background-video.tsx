@@ -1,3 +1,4 @@
+// andremov-brand-check-unique: the overscaled full-bleed YouTube background and its dimming layer are the dashboard's backdrop
 import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../lib/store';
 import type { Space } from '../lib/types';
@@ -62,15 +63,32 @@ export function BackgroundVideo({ space }: Props) {
     let cancelled = false;
     setReady(false);
 
-    // The API replaces the element it is given, so it gets a throwaway child
-    // rather than the host node we need to keep across space changes.
-    const mount = document.createElement('div');
-    hostRef.current?.appendChild(mount);
-
     const pool = space.videoIds;
     // A station rolls its next video when the current one ends, so the order
     // is never fixed up front. A plain space just loops itself.
     let current = pool?.length ? pick(pool) : space.id;
+
+    // The player gets an iframe built here rather than one the API builds, so it can carry
+    // its own permissions: YouTube's player script asks for compute-pressure, and without
+    // it in `allow` every video logs a permissions-policy violation. It's a throwaway child,
+    // not the host node we need to keep across space changes.
+    const params = new URLSearchParams({
+      autoplay: '1',
+      mute: '1',
+      controls: '0',
+      modestbranding: '1',
+      rel: '0',
+      playsinline: '1',
+      iv_load_policy: '3',
+      disablekb: '1',
+      enablejsapi: '1',
+      origin: window.location.origin,
+      ...(pool?.length ? {} : { loop: '1', playlist: space.id }),
+    });
+    const mount = document.createElement('iframe');
+    mount.allow = 'autoplay; encrypted-media; picture-in-picture; compute-pressure';
+    mount.title = 'Background video';
+    mount.tabIndex = -1;
 
     // Only the player knows which video is on screen once a station starts
     // moving through its pool.
@@ -81,19 +99,9 @@ export function BackgroundVideo({ space }: Props) {
 
     loadPlayerApi().then(() => {
       if (cancelled || !window.YT) return;
+      mount.src = `https://www.youtube.com/embed/${current}?${params}`;
+      hostRef.current?.appendChild(mount);
       playerRef.current = new window.YT.Player(mount, {
-        videoId: current,
-        playerVars: {
-          autoplay: 1,
-          mute: 1,
-          controls: 0,
-          modestbranding: 1,
-          rel: 0,
-          playsinline: 1,
-          iv_load_policy: 3,
-          disablekb: 1,
-          ...(pool?.length ? {} : { loop: 1, playlist: space.id }),
-        },
         events: {
           onReady: (event: { target: YTPlayer }) => {
             if (cancelled) return;
@@ -130,7 +138,9 @@ export function BackgroundVideo({ space }: Props) {
   }, [ready, muted, volume]);
 
   return (
-    <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-black">
+    // decorative backdrop: the Spaces window controls it, so keep the player out of the tab
+    // order and the accessibility tree
+    <div aria-hidden inert className="pointer-events-none fixed inset-0 -z-10 overflow-hidden bg-black">
       {/* Overscaled so YouTube's own title and "More videos" chrome, which
           sits against the player's edges, falls outside the viewport. */}
       <div

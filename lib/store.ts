@@ -6,12 +6,12 @@ import type {
   Note,
   Space,
   Task,
-  Theme,
   TimerInterval,
   ToolName,
 } from './types';
 import { HOUR_SLOTS, INTERVAL_DURATIONS, SPACES, slotKey } from './constants';
 import { extractVideoId, thumbnailUrl } from './youtube';
+import { ANDREMOV_THEME_KEY } from '@andremov/brand/theme-script';
 
 function parseTaskInput(raw: string): { name: string; tags: string[] } {
   const tags: string[] = [];
@@ -81,12 +81,6 @@ type Store = {
   nowPlaying: string | null;
   setNowPlaying: (title: string | null) => void;
 
-  theme: Theme;
-  themeSet: boolean;
-  setTheme: (value: Theme) => void;
-  toggleTheme: () => void;
-  syncSystemTheme: () => void;
-
   timerInterval: TimerInterval;
   timerRemaining: number;
   timerRunning: boolean;
@@ -105,7 +99,7 @@ type Store = {
   layout: LayoutState;
   topZ: number;
   toggleTool: (name: ToolName) => void;
-  moveTool: (name: ToolName, delta: { x: number; y: number }) => void;
+  moveTool: (name: ToolName, position: { top: number; left: number }) => void;
   bringToFront: (name: ToolName) => void;
 
   hasHydrated: boolean;
@@ -253,30 +247,30 @@ export const useStore = create<Store>()(
       nowPlaying: null,
       setNowPlaying: (title) => set({ nowPlaying: title }),
 
-      theme: 'dark',
-      themeSet: false,
-      setTheme: (value) => set({ theme: value, themeSet: true }),
-      toggleTheme: () =>
-        set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark', themeSet: true })),
-      syncSystemTheme: () => {
-        if (typeof window === 'undefined' || !window.matchMedia) return;
-        if (get().themeSet) return;
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        set({ theme: prefersDark ? 'dark' : 'light' });
-      },
-
       timerInterval: 'pomodoro',
       timerRemaining: INTERVAL_DURATIONS.pomodoro,
       timerRunning: false,
       timerDurations: { ...INTERVAL_DURATIONS },
       timerAlert: false,
       completions: [],
-      startTimer: () => set({ timerRunning: true, timerAlert: false }),
+      // Starting a finished timer begins a fresh interval; resuming from 00:00 would end it
+      // (and log another pomodoro) on the very next tick.
+      startTimer: () =>
+        set((s) => ({
+          timerRunning: true,
+          timerAlert: false,
+          timerRemaining:
+            s.timerRemaining > 0 ? s.timerRemaining : s.timerDurations[s.timerInterval],
+        })),
       pauseTimer: () => set({ timerRunning: false }),
       toggleTimer: () =>
         set((s) => ({
           timerRunning: !s.timerRunning,
           timerAlert: false,
+          timerRemaining:
+            !s.timerRunning && s.timerRemaining <= 0
+              ? s.timerDurations[s.timerInterval]
+              : s.timerRemaining,
         })),
       resetTimer: () =>
         set((s) => ({
@@ -334,20 +328,19 @@ export const useStore = create<Store>()(
             topZ: becomingVisible ? nextZ : s.topZ,
           };
         }),
-      moveTool: (name, delta) =>
-        set((s) => {
-          const entry = s.layout[name];
-          return {
-            layout: {
-              ...s.layout,
-              [name]: {
-                ...entry,
-                top: entry.top + delta.y,
-                left: entry.left + delta.x,
-              },
+      // Stores where the window was dropped on screen, not stored-position + delta: a
+      // window clamped into a small viewport would otherwise jump on its next drag.
+      moveTool: (name, position) =>
+        set((s) => ({
+          layout: {
+            ...s.layout,
+            [name]: {
+              ...s.layout[name],
+              top: Math.max(0, Math.round(position.top)),
+              left: Math.max(0, Math.round(position.left)),
             },
-          };
-        }),
+          },
+        })),
       bringToFront: (name) =>
         set((s) => {
           if (s.layout[name].z === s.topZ) return {};
@@ -366,10 +359,10 @@ export const useStore = create<Store>()(
     }),
     {
       name: 'life-dashboard',
-      version: 3,
+      version: 4,
       migrate: (persisted: unknown, fromVersion) => {
         const state = persisted as
-          | (Partial<Store> & { note?: string })
+          | (Partial<Store> & { note?: string; theme?: string; themeSet?: boolean })
           | undefined;
         if (!state) return state as unknown as Store;
         if (fromVersion < 2 && Array.isArray(state.tasks)) {
@@ -397,6 +390,23 @@ export const useStore = create<Store>()(
           }
           delete state.note;
         }
+        if (fromVersion < 4) {
+          // The light/dark choice moved to the brand's shared theme key.
+          if (state.themeSet && (state.theme === 'light' || state.theme === 'dark')) {
+            try {
+              if (!localStorage.getItem(ANDREMOV_THEME_KEY)) {
+                localStorage.setItem(ANDREMOV_THEME_KEY, state.theme);
+                document.documentElement.classList.remove('light', 'dark');
+                document.documentElement.classList.add(state.theme);
+                document.documentElement.dataset.theme = state.theme;
+              }
+            } catch {
+              /* storage unavailable */
+            }
+          }
+          delete state.theme;
+          delete state.themeSet;
+        }
         if (state.layout) {
           state.layout = { ...INITIAL_LAYOUT, ...state.layout };
         }
@@ -413,8 +423,6 @@ export const useStore = create<Store>()(
         spaceMuted: s.spaceMuted,
         spaceVolume: s.spaceVolume,
         spaceOverlay: s.spaceOverlay,
-        theme: s.theme,
-        themeSet: s.themeSet,
         timerDurations: s.timerDurations,
         completions: s.completions,
         layout: s.layout,

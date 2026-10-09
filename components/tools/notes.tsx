@@ -1,9 +1,10 @@
+// andremov-brand-check-unique: the two-pane notes window (note list beside a borderless title and writing area) is this dashboard's scratchpad
 import React, { useEffect } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
+import { Text, cn } from '@andremov/brand';
+import { Button } from '@andremov/brand/ui/button';
 import { MovableCard } from '../cards';
-import { Button } from '../ui/button';
 import { useStore } from '../../lib/store';
-import { cn } from '../../lib/utils';
 
 export function Notes() {
   const notes = useStore((s) => s.notes);
@@ -27,31 +28,27 @@ export function Notes() {
     <MovableCard name="notes" title="Notes" className="w-[28rem]">
       <div className="flex h-80 gap-2">
         <div className="flex w-32 shrink-0 flex-col gap-1 border-r pr-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 justify-start gap-1 text-xs"
-            onClick={createNote}
-          >
-            <Plus className="size-3.5" />
+          <Button variant="ghost" size="xs" className="justify-start" onClick={createNote}>
+            <Plus />
             New
           </Button>
           <div className="flex flex-1 flex-col gap-0.5 overflow-y-auto">
             {notes.length === 0 && (
-              <div className="px-1 py-2 text-[11px] text-muted-foreground">
+              <Text variant="hint" className="px-1 py-2">
                 No notes yet.
-              </div>
+              </Text>
             )}
             {notes.map((note) => (
               <button
                 key={note.id}
                 type="button"
                 onClick={() => selectNote(note.id)}
+                aria-current={note.id === activeNoteId || undefined}
                 className={cn(
                   'truncate rounded-md px-2 py-1 text-left text-xs transition-colors',
                   note.id === activeNoteId
-                    ? 'bg-accent text-accent-foreground'
-                    : 'text-muted-foreground hover:bg-accent/50',
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:bg-muted/60',
                 )}
               >
                 {note.title || 'Untitled'}
@@ -68,28 +65,31 @@ export function Notes() {
                   value={active.title}
                   onChange={(e) => updateNoteTitle(active.id, e.target.value)}
                   placeholder="Untitled"
-                  className="flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-muted-foreground"
+                  aria-label="Note title"
+                  className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-muted-foreground"
                 />
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() => deleteNote(active.id)}
                   aria-label="Delete note"
-                  className="inline-flex size-6 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                  className="hover:text-danger-text"
                 >
                   <Trash2 className="size-3.5" />
-                </button>
+                </Button>
               </div>
               <textarea
                 value={active.body}
                 onChange={(e) => updateNoteBody(active.id, e.target.value)}
                 placeholder="Jot something down..."
+                aria-label="Note"
                 className="mt-2 flex-1 resize-none bg-transparent text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
               />
             </>
           ) : (
-            <div className="flex flex-1 items-center justify-center text-xs text-muted-foreground">
+            <Text variant="hint" className="flex flex-1 items-center justify-center">
               Click &ldquo;New&rdquo; to create a note.
-            </div>
+            </Text>
           )}
         </div>
       </div>

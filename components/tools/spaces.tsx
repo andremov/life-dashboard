@@ -1,3 +1,4 @@
+// andremov-brand-check-unique: the grid of video thumbnails with their station badges and now-playing strip is the space picker's own UI
 import React, { useState } from 'react';
 import {
   AudioLines,
@@ -8,13 +9,13 @@ import {
   Volume2,
   VolumeX,
 } from 'lucide-react';
+import { Notice, Text, TextField, cn } from '@andremov/brand';
+import { Button } from '@andremov/brand/ui/button';
+import { Slider } from '@andremov/brand/ui/slider';
 import { MovableCard } from '../cards';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import { SPACES, resolveSpace } from '../../lib/constants';
 import { useStore } from '../../lib/store';
 import type { Space } from '../../lib/types';
-import { cn } from '../../lib/utils';
 
 export function Spaces() {
   const spaceId = useStore((s) => s.spaceId);
@@ -62,40 +63,35 @@ export function Spaces() {
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-sm"
             onClick={() => setMuted(!muted)}
             aria-label={muted ? 'Unmute' : 'Mute'}
-            className="size-7"
           >
-            {muted ? (
-              <VolumeX className="size-4" />
-            ) : (
-              <Volume2 className="size-4" />
-            )}
+            {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
           </Button>
-          <input
-            type="range"
+          <Slider
             min={0}
             max={100}
-            value={volume}
+            value={[volume]}
             disabled={muted}
-            onChange={(e) => setVolume(Number(e.target.value))}
+            onValueChange={([v]) => setVolume(v)}
             aria-label="Volume"
-            className="h-1 flex-1 accent-primary disabled:opacity-40"
+            className="flex-1"
           />
         </div>
-        <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span className="w-12 shrink-0 tracking-wider uppercase">Dim</span>
-          <input
-            type="range"
+        <div className="flex items-center gap-2">
+          <Text as="span" variant="hint" id="spaces-dim" className="w-8 shrink-0 text-center">
+            Dim
+          </Text>
+          <Slider
             min={0}
             max={80}
-            value={Math.round(overlay * 100)}
-            onChange={(e) => setOverlay(Number(e.target.value) / 100)}
-            aria-label="Background dim"
-            className="h-1 flex-1 accent-primary"
+            value={[Math.round(overlay * 100)]}
+            onValueChange={([v]) => setOverlay(v / 100)}
+            aria-labelledby="spaces-dim"
+            className="flex-1"
           />
-        </label>
+        </div>
       </div>
     </MovableCard>
   );
@@ -105,7 +101,7 @@ type NowPlayingProps = { title: string | null; fallback: string };
 
 const NowPlaying = ({ title, fallback }: NowPlayingProps) => (
   <div className="mb-3 flex items-center gap-2 border-b pb-3">
-    <AudioLines className="size-4 shrink-0 text-primary" />
+    <AudioLines aria-hidden className="size-4 shrink-0 text-brand-text" />
     <div className="min-w-0">
       <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
         Now playing
@@ -129,8 +125,8 @@ const SpaceTile = ({ space, active, onSelect, onRemove }: SpaceTileProps) => (
     className={cn(
       'group relative aspect-video overflow-hidden rounded-md border transition-colors',
       active
-        ? 'border-primary ring-2 ring-primary/60'
-        : 'border-transparent hover:border-accent',
+        ? 'border-brand ring-2 ring-brand/60'
+        : 'border-transparent hover:border-border',
     )}
   >
     <button
@@ -138,7 +134,7 @@ const SpaceTile = ({ space, active, onSelect, onRemove }: SpaceTileProps) => (
       onClick={onSelect}
       aria-label={space.title}
       aria-pressed={active}
-      className="block h-full w-full"
+      className="block h-full w-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
     >
       <img
         src={space.thumbnail}
@@ -172,7 +168,7 @@ const SpaceTile = ({ space, active, onSelect, onRemove }: SpaceTileProps) => (
           onRemove();
         }}
         aria-label={`Remove ${space.title}`}
-        className="absolute top-1 left-1 inline-flex size-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-500"
+        className="absolute top-1 left-1 inline-flex size-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-danger-fill hover:text-danger-on focus-visible:opacity-100"
       >
         <Trash2 className="size-3" />
       </button>
@@ -212,19 +208,20 @@ const CustomSpaceInput = ({ addCustomSpace }: CustomSpaceInputProps) => {
         Add custom
       </p>
       <div className="flex items-center gap-2">
-        <Input
+        <TextField
           value={url}
-          onChange={(e) => {
-            setUrl(e.target.value);
+          onChange={(v) => {
+            setUrl(v);
             setError(false);
           }}
           onKeyDown={handleEnter}
+          aria-label="YouTube URL or video ID"
+          aria-invalid={error || undefined}
           placeholder="YouTube URL or video ID"
-          className={cn('h-7 flex-1 text-xs', error && 'border-destructive')}
+          className="flex-1"
         />
         <Button
-          size="icon"
-          className="size-7"
+          size="icon-sm"
           disabled={!url.trim()}
           onClick={handleAdd}
           aria-label="Add custom space"
@@ -232,17 +229,17 @@ const CustomSpaceInput = ({ addCustomSpace }: CustomSpaceInputProps) => {
           <Plus className="size-4" />
         </Button>
       </div>
-      <Input
+      <TextField
         value={title}
-        onChange={(e) => setTitle(e.target.value)}
+        onChange={setTitle}
         onKeyDown={handleEnter}
+        aria-label="Title (optional)"
         placeholder="Title (optional)"
-        className="h-7 text-xs"
       />
       {error && (
-        <p className="text-[10px] text-destructive">
-          Couldn&apos;t parse that — paste a YouTube URL or 11-char video ID.
-        </p>
+        <Notice tone="danger">
+          Couldn&apos;t parse that. Paste a YouTube URL or an 11-character video ID.
+        </Notice>
       )}
     </div>
   );

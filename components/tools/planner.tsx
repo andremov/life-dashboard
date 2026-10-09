@@ -1,10 +1,12 @@
+// andremov-brand-check-unique: the hourly drop slots that tasks are dragged into are the day planner's own layout
 import React from 'react';
 import { X } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
+import { Text, cn } from '@andremov/brand';
+import { Button } from '@andremov/brand/ui/button';
 import { MovableCard } from '../cards';
 import { HOUR_SLOTS, slotKey } from '../../lib/constants';
 import { useStore } from '../../lib/store';
-import { cn } from '../../lib/utils';
 
 export function Planner() {
   const tasks = useStore((s) => s.tasks);
@@ -16,7 +18,7 @@ export function Planner() {
 
   return (
     <MovableCard name="planner" title="Planner" className="w-80">
-      <div className="flex max-h-96 flex-col gap-0.5 overflow-y-auto pr-1">
+      <ol tabIndex={0} aria-label="Hours" className="flex max-h-96 flex-col gap-0.5 overflow-y-auto pr-1">
         {HOUR_SLOTS.map((hour) => {
           const key = slotKey(hour);
           const name = taskName(plannerAssignments[key] ?? null);
@@ -30,7 +32,7 @@ export function Planner() {
             />
           );
         })}
-      </div>
+      </ol>
     </MovableCard>
   );
 }
@@ -46,31 +48,28 @@ const HourSlot = ({ slotId, label, taskName, onClear }: HourSlotProps) => {
   const { setNodeRef, isOver } = useDroppable({ id: `slot:${slotId}` });
 
   return (
-    <div
+    <li
       ref={setNodeRef}
       className={cn(
         'flex min-h-8 items-center gap-3 rounded-md border border-transparent px-2 text-sm transition-colors',
-        isOver && 'border-primary bg-primary/10',
+        isOver && 'border-brand bg-brand/10',
       )}
     >
-      <span className="w-12 shrink-0 font-mono text-xs text-muted-foreground">
+      <Text as="span" variant="hint" className="w-12 shrink-0 font-mono">
         {label}
-      </span>
+      </Text>
       {taskName ? (
         <div className="flex flex-1 items-center gap-2">
           <span className="flex-1 truncate">{taskName}</span>
-          <button
-            type="button"
-            onClick={onClear}
-            aria-label="Clear slot"
-            className="inline-flex size-5 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-          >
+          <Button variant="ghost" size="icon-xs" onClick={onClear} aria-label={`Clear ${label}`}>
             <X className="size-3.5" />
-          </button>
+          </Button>
         </div>
       ) : (
-        <span className="flex-1 text-xs text-muted-foreground/60">—</span>
+        <span className="flex-1 text-xs text-muted-foreground">
+          —
+        </span>
       )}
-    </div>
+    </li>
   );
 };

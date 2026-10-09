@@ -1,6 +1,7 @@
+// andremov-brand-check-unique: the pulsing full-screen alarm frame around the dashboard when the timer ends is this tool's own
 import React, { useEffect } from 'react';
-import { BellRing } from 'lucide-react';
-import { Button } from './ui/button';
+import { Notice } from '@andremov/brand';
+import { Button } from '@andremov/brand/ui/button';
 import { useStore } from '../lib/store';
 
 export function TimerAlert() {
@@ -12,11 +13,13 @@ export function TimerAlert() {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
+        // the timer's own space shortcut must not restart it in the same keypress
+        e.stopImmediatePropagation();
         dismiss();
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener('keydown', handler, { capture: true });
+    return () => window.removeEventListener('keydown', handler, { capture: true });
   }, [alert, dismiss]);
 
   if (!alert) return null;
@@ -25,22 +28,17 @@ export function TimerAlert() {
     <>
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-0 z-40 animate-pulse ring-8 ring-inset ring-red-500/40"
+        className="pointer-events-none fixed inset-0 z-40 animate-pulse ring-8 ring-danger/40 ring-inset"
       />
-      <div
-        role="alert"
-        className="fixed top-16 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-xl border border-red-500/50 bg-card/95 px-4 py-3 shadow-2xl backdrop-blur-md"
-      >
-        <BellRing className="size-5 animate-bounce text-red-500" />
-        <div className="flex flex-col">
-          <span className="text-sm font-semibold">Time&apos;s up!</span>
-          <span className="text-[11px] text-muted-foreground">
-            Press Esc or click dismiss
-          </span>
-        </div>
-        <Button size="sm" onClick={dismiss} className="ml-2">
-          Dismiss
-        </Button>
+      <div className="fixed top-16 left-1/2 z-50 -translate-x-1/2 shadow-2xl">
+        <Notice tone="danger" title="Time's up!" className="items-center">
+          <div className="flex items-center gap-3">
+            <span>Press Esc or click dismiss</span>
+            <Button size="sm" onClick={dismiss}>
+              Dismiss
+            </Button>
+          </div>
+        </Notice>
       </div>
     </>
   );

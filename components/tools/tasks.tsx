@@ -1,17 +1,20 @@
+// andremov-brand-check-unique: the sortable task rows (drag handle, hover-revealed delete, inline #tag pills) are this dashboard's checklist
 import React, { useMemo, useState } from 'react';
-import { Check, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { SegmentedControl, Text, TextField, cn } from '@andremov/brand';
+import { Button } from '@andremov/brand/ui/button';
+import { Checkbox } from '@andremov/brand/ui/checkbox';
 import { MovableCard } from '../cards';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import { useStore } from '../../lib/store';
 import type { Task } from '../../lib/types';
-import { cn } from '../../lib/utils';
+
+const ALL = '\u0000all';
 
 export function Tasks() {
   const tasks = useStore((s) => s.tasks);
@@ -27,9 +30,12 @@ export function Tasks() {
     return Array.from(set).sort();
   }, [tasks]);
 
+  // A filter whose last task was deleted would otherwise leave an empty list and no chip to clear it.
+  const activeTag = filterTag && allTags.includes(filterTag) ? filterTag : null;
+
   const filteredTasks = useMemo(
-    () => (filterTag ? tasks.filter((t) => t.tags.includes(filterTag)) : tasks),
-    [tasks, filterTag],
+    () => (activeTag ? tasks.filter((t) => t.tags.includes(activeTag)) : tasks),
+    [tasks, activeTag],
   );
 
   const sortableIds = filteredTasks.map((t) => `task:${t.id}`);
@@ -37,67 +43,42 @@ export function Tasks() {
   return (
     <MovableCard name="tasks" title="Tasks" className="w-72">
       {allTags.length > 0 && (
-        <div className="mb-2 flex flex-wrap gap-1">
-          <TagChip
-            label="all"
-            active={filterTag === null}
-            onClick={() => setFilterTag(null)}
-          />
-          {allTags.map((tag) => (
-            <TagChip
-              key={tag}
-              label={`#${tag}`}
-              active={filterTag === tag}
-              onClick={() => setFilterTag(filterTag === tag ? null : tag)}
-            />
-          ))}
-        </div>
+        <SegmentedControl
+          aria-label="Filter by tag"
+          variant="chips"
+          size="sm"
+          className="mb-2"
+          options={[
+            { value: ALL, label: 'all' },
+            ...allTags.map((tag) => ({ value: tag, label: `#${tag}` })),
+          ]}
+          value={activeTag ?? ALL}
+          onChange={(v) => setFilterTag(v === ALL ? null : v)}
+          arrowKeys={false}
+        />
       )}
       <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-1">
           {filteredTasks.map((task) => (
             <TaskRow
               key={task.id}
               task={task}
               onToggle={() => toggleTask(task.id)}
               onDelete={() => deleteTask(task.id)}
-              onTagClick={(tag) =>
-                setFilterTag(filterTag === tag ? null : tag)
-              }
+              onTagClick={(tag) => setFilterTag(activeTag === tag ? null : tag)}
             />
           ))}
-          {filteredTasks.length === 0 && (
-            <div className="px-1 py-2 text-xs text-muted-foreground">
-              {filterTag ? `No tasks tagged #${filterTag}.` : 'No tasks yet.'}
-            </div>
-          )}
-        </div>
+        </ul>
       </SortableContext>
+      {filteredTasks.length === 0 && (
+        <Text variant="hint" className="px-1 py-2">
+          {activeTag ? `No tasks tagged #${activeTag}.` : 'No tasks yet.'}
+        </Text>
+      )}
       <TaskInput addTask={addTask} />
     </MovableCard>
   );
 }
-
-type TagChipProps = {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-};
-
-const TagChip = ({ label, active, onClick }: TagChipProps) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={cn(
-      'rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors',
-      active
-        ? 'border-primary bg-primary text-primary-foreground'
-        : 'border-border text-muted-foreground hover:border-accent hover:text-foreground',
-    )}
-  >
-    {label}
-  </button>
-);
 
 type TaskRowProps = {
   task: Task;
@@ -107,78 +88,52 @@ type TaskRowProps = {
 };
 
 const TaskRow = ({ task, onToggle, onDelete, onTagClick }: TaskRowProps) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: `task:${task.id}` });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: `task:${task.id}` });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
   };
+  const checkboxId = `task-${task.id}`;
 
   return (
-    <div
+    <li
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group flex items-center gap-1 rounded-md px-1 py-1 text-sm transition-colors hover:bg-accent/50',
+        'group flex items-center gap-1 rounded-md px-1 py-1 text-sm transition-colors hover:bg-muted/60',
         task.done && 'text-muted-foreground line-through',
       )}
     >
       <button
         type="button"
-        aria-label="Drag task"
-        className="flex size-5 shrink-0 cursor-grab items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 active:cursor-grabbing"
+        aria-label={`Drag ${task.name}`}
+        className="flex size-5 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing"
         {...listeners}
         {...attributes}
       >
         <GripVertical className="size-4" />
       </button>
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={task.done ? 'Mark task as not done' : 'Mark task as done'}
-        className={cn(
-          'flex size-5 shrink-0 items-center justify-center rounded border',
-          task.done
-            ? 'border-primary bg-primary text-primary-foreground'
-            : 'border-input',
-        )}
-      >
-        {task.done && <Check className="size-3.5" />}
-      </button>
+      <Checkbox
+        id={checkboxId}
+        checked={task.done}
+        onCheckedChange={onToggle}
+        className="mr-1"
+      />
       <div className="flex min-w-0 flex-1 flex-col">
-        <span
-          role="button"
-          tabIndex={0}
-          onClick={onToggle}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              onToggle();
-            }
-          }}
-          className="cursor-pointer truncate"
-        >
+        <label htmlFor={checkboxId} className="cursor-pointer truncate">
           {task.name}
-        </span>
+        </label>
         {task.tags.length > 0 && (
           <div className="mt-0.5 flex flex-wrap gap-1">
             {task.tags.map((tag) => (
               <button
                 key={tag}
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onTagClick(tag);
-                }}
-                className="rounded-full bg-accent/50 px-1.5 py-0 text-[9px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                onClick={() => onTagClick(tag)}
+                className="rounded-full bg-muted px-1.5 text-[10px] text-muted-foreground hover:text-foreground"
               >
                 #{tag}
               </button>
@@ -186,15 +141,16 @@ const TaskRow = ({ task, onToggle, onDelete, onTagClick }: TaskRowProps) => {
           </div>
         )}
       </div>
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={onDelete}
-        aria-label="Delete task"
-        className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+        aria-label={`Delete ${task.name}`}
+        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-danger-text"
       >
         <Trash2 className="size-3.5" />
-      </button>
-    </div>
+      </Button>
+    </li>
   );
 };
 
@@ -213,26 +169,19 @@ const TaskInput = ({ addTask }: TaskInputProps) => {
     }
   };
 
-  const handleEnter = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') handleAdd();
-  };
-
   return (
     <div className="mt-3 flex items-center gap-2">
-      <Input
+      <TextField
         value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={handleEnter}
+        onChange={setName}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleAdd();
+        }}
+        aria-label="New task"
         placeholder="Add task... (use #tag)"
-        className="h-8 flex-1 text-sm"
+        className="flex-1"
       />
-      <Button
-        size="icon"
-        className="size-8"
-        disabled={!name.trim()}
-        onClick={handleAdd}
-        aria-label="Add task"
-      >
+      <Button size="icon-sm" disabled={!name.trim()} onClick={handleAdd} aria-label="Add task">
         <Plus className="size-4" />
       </Button>
     </div>
