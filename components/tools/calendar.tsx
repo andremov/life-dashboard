@@ -43,6 +43,7 @@ export function CalendarTool() {
     return map;
   }, [completions]);
 
+  // eslint-disable-next-line react-hooks/purity -- "today" is read on every render on purpose (rolls over at midnight)
   const today = startOfDay(Date.now());
   const cells = useMemo(
     () => buildMonthGrid(cursor.year, cursor.month),

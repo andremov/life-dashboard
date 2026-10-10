@@ -61,6 +61,7 @@ export function BackgroundVideo({ space }: Props) {
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- this effect drives the YouTube player; hide it until the new space is ready
     setReady(false);
 
     const pool = space.videoIds;

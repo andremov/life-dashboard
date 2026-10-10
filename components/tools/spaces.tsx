@@ -136,6 +136,7 @@ const SpaceTile = ({ space, active, onSelect, onRemove }: SpaceTileProps) => (
       aria-pressed={active}
       className="block h-full w-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
     >
+      {/* eslint-disable-next-line @next/next/no-img-element -- remote YouTube thumbnail, shown as-is */}
       <img
         src={space.thumbnail}
         alt=""
